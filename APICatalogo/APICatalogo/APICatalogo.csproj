@@ -23,6 +23,7 @@
 
 	<ItemGroup>
 	  <Folder Include="Context\" />
+	  <Folder Include="Logging\Logs\" />
 	</ItemGroup>
 
 </Project>

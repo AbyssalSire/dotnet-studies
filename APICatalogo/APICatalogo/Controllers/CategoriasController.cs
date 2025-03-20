@@ -1,6 +1,6 @@
 ﻿using APICatalogo.Context;
+using APICatalogo.Filters;
 using APICatalogo.Models;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,25 +11,43 @@ namespace APICatalogo.Controllers
     public class CategoriasController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IConfiguration _configuration;
+        private readonly ILogger _logger;
 
-        public CategoriasController(AppDbContext context)
+        public CategoriasController(AppDbContext context, IConfiguration configuration, ILogger<CategoriasController> logger)
         {
             _context = context;
+            _configuration = configuration;
+            _logger = logger;
+        }
+
+        [HttpGet("LerAquivoConfiguracao")]
+        public string GetValores()
+        {
+            var valor1 = _configuration["chave1"];
+            var valor2 = _configuration["chave2"];
+            var secao1 = _configuration["secao1:chave2"];
+
+            return $"Chave 1 = {valor1}\nChave 2 = {valor2}\nSeção 1 => Chave 2 = {secao1}";
+
         }
 
         [HttpGet("produtos")]
         public ActionResult<IEnumerable<Categoria>> GetCategoriasProduto()
         {
+            _logger.LogInformation("--------- GET categoria/produtos ----------");
             return _context.Categorias.Include(p=>p.Produtos).ToList();
         }
 
         [HttpGet]
-        public ActionResult<IEnumerable<Categoria>> Get()
+        [ServiceFilter(typeof(ApiLoggingFilter))]
+        public async Task<ActionResult<IEnumerable<Categoria>>> Get()
         {
+            _logger.LogInformation("--------- GET categoria ----------");
             try
             {
             //throw new DataMisalignedException();
-            return _context.Categorias.AsNoTracking().ToList();
+            return await _context.Categorias.AsNoTracking().ToListAsync();
             // é recomendável sempre fazer uma filtragem ao invés de pegar todos os items
             // return _context.Categorias.Include(p=>p.Produtos).Where(c=>c.CategoriaId<=5).ToList();
             }
@@ -42,9 +60,12 @@ namespace APICatalogo.Controllers
         [HttpGet("{id:int}", Name = "ObterCategoria")]
         public ActionResult<Categoria> Get(int id)
         {
+            //throw new Exception("Exceção ao retornar o a categoria pelo ID");
             var categoria = _context.Categorias.FirstOrDefault(p => p.CategoriaId == id);
+            _logger.LogInformation($"--------- GET categoria/id {id} ----------");
             if(categoria == null)
             {
+            _logger.LogInformation($"--------- GET categoria/id {id} NOT FOUND ----------");
                 return NotFound("Categoria não encontrada...");
             }
             return Ok(categoria);
