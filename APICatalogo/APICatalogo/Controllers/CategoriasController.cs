@@ -1,6 +1,7 @@
 ﻿using APICatalogo.Context;
 using APICatalogo.Filters;
 using APICatalogo.Models;
+using APICatalogo.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,13 +11,13 @@ namespace APICatalogo.Controllers;
 [ApiController]
 public class CategoriasController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly ICategoriaRepository _repository;
     private readonly IConfiguration _configuration;
     private readonly ILogger _logger;
 
-    public CategoriasController(AppDbContext context, IConfiguration configuration, ILogger<CategoriasController> logger)
+    public CategoriasController(ICategoriaRepository repository, IConfiguration configuration, ILogger<CategoriasController> logger)
     {
-        _context = context;
+        _repository = repository;
         _configuration = configuration;
         _logger = logger;
     }
@@ -32,30 +33,34 @@ public class CategoriasController : ControllerBase
 
     }
 
-    [HttpGet("produtos")]
+    
+     [HttpGet("produtos")]
     public ActionResult<IEnumerable<Categoria>> GetCategoriasProduto()
     {
         _logger.LogInformation("--------- GET categoria/produtos ----------");
-        return _context.Categorias.Include(p=>p.Produtos).ToList();
+        var categoriasComProdutos = _repository.GetCategoriasWithProducts();
+        return Ok(categoriasComProdutos);
     }
+    
 
     [HttpGet]
     [ServiceFilter(typeof(ApiLoggingFilter))]
-    public async Task<ActionResult<IEnumerable<Categoria>>> Get()
+    public ActionResult<IEnumerable<Categoria>> Get()
     {
         _logger.LogInformation("--------- GET categoria ----------");
 
         //throw new DataMisalignedException();
-        return await _context.Categorias.AsNoTracking().ToListAsync();
+        var categorias = _repository.GetCategorias();
+        return Ok(categorias);
 
     }
 
     [HttpGet("{id:int}", Name = "ObterCategoria")]
     public ActionResult<Categoria> Get(int id)
     {
-        
+
         //throw new Exception("Exceção ao retornar o a categoria pelo ID");
-        var categoria = _context.Categorias.FirstOrDefault(p => p.CategoriaId == id);
+        var categoria = _repository.GetCategoria(id);
         _logger.LogInformation($"--------- GET categoria/id {id} ----------");
         if(categoria == null)
         {
@@ -73,10 +78,9 @@ public class CategoriasController : ControllerBase
             return BadRequest("Categoria não encontrada");
         }
 
-        _context.Categorias.Add(categoria);
-        _context.SaveChanges();
+        var categoriaCriada = _repository.Create(categoria);
 
-        return new CreatedAtRouteResult("ObterCategoria", new { id = categoria.CategoriaId }, categoria);
+        return new CreatedAtRouteResult("ObterCategoria", new { id = categoriaCriada.CategoriaId }, categoriaCriada);
     }
 
     [HttpPut("{id:int}")]
@@ -86,21 +90,23 @@ public class CategoriasController : ControllerBase
         {
             return BadRequest("Id não corresponde à categoria");
         }
-        _context.Entry(categoria).State = EntityState.Modified;
-        _context.SaveChanges();
+
+        _repository.Update(categoria);
+
         return Ok(categoria);
     }
 
     [HttpDelete("{id:int}")]
     public ActionResult<Categoria> Delete(int id)
     {
-        var categoria = _context.Categorias.FirstOrDefault(p => p.CategoriaId == id);
+        var categoria = _repository.GetCategoria(id);
         if(categoria == null)
         {
             return NotFound("Categoria não encontrada");
         }
-        _context.Categorias.Remove(categoria);
-        _context.SaveChanges();
+
+        var categoriaExcluida = _repository.Delete(id);
+
         return Ok(categoria);
     }
 

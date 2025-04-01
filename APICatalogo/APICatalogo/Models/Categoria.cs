@@ -1,6 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace APICatalogo.Models;
 
@@ -21,5 +22,6 @@ public class Categoria
     [StringLength(300)]
     public string? ImagemURL { get; set; }
     // Propriedade de navegação para indicar que uma Categoria pode possuir muitos Produtos
+    //[JsonIgnore]
     public ICollection<Produto>? Produtos { get; set; }
 }
