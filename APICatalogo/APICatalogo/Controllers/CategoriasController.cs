@@ -4,6 +4,7 @@ using APICatalogo.Models;
 using APICatalogo.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NuGet.Protocol.Core.Types;
 
 namespace APICatalogo.Controllers;
 
@@ -11,13 +12,15 @@ namespace APICatalogo.Controllers;
 [ApiController]
 public class CategoriasController : ControllerBase
 {
-    private readonly ICategoriaRepository _repository;
+    private readonly IRepository<Categoria> _repository;
+    private readonly ICategoriaRepository _categoriaRepository;
     private readonly IConfiguration _configuration;
     private readonly ILogger _logger;
 
-    public CategoriasController(ICategoriaRepository repository, IConfiguration configuration, ILogger<CategoriasController> logger)
+    public CategoriasController(IRepository<Categoria> repository, ICategoriaRepository categoriaRepository,IConfiguration configuration, ILogger<CategoriasController> logger)
     {
         _repository = repository;
+        _categoriaRepository = categoriaRepository;
         _configuration = configuration;
         _logger = logger;
     }
@@ -38,7 +41,7 @@ public class CategoriasController : ControllerBase
     public ActionResult<IEnumerable<Categoria>> GetCategoriasProduto()
     {
         _logger.LogInformation("--------- GET categoria/produtos ----------");
-        var categoriasComProdutos = _repository.GetCategoriasWithProducts();
+        var categoriasComProdutos = _categoriaRepository.GetCategoriasWithProducts();
         return Ok(categoriasComProdutos);
     }
     
@@ -50,7 +53,7 @@ public class CategoriasController : ControllerBase
         _logger.LogInformation("--------- GET categoria ----------");
 
         //throw new DataMisalignedException();
-        var categorias = _repository.GetCategorias();
+        var categorias = _repository.GetAll();
         return Ok(categorias);
 
     }
@@ -60,7 +63,7 @@ public class CategoriasController : ControllerBase
     {
 
         //throw new Exception("Exceção ao retornar o a categoria pelo ID");
-        var categoria = _repository.GetCategoria(id);
+        var categoria = _repository.Get(c=>c.CategoriaId == id);
         _logger.LogInformation($"--------- GET categoria/id {id} ----------");
         if(categoria == null)
         {
@@ -99,13 +102,13 @@ public class CategoriasController : ControllerBase
     [HttpDelete("{id:int}")]
     public ActionResult<Categoria> Delete(int id)
     {
-        var categoria = _repository.GetCategoria(id);
+        var categoria = _repository.Get(c => c.CategoriaId == id);
         if(categoria == null)
         {
             return NotFound("Categoria não encontrada");
         }
 
-        var categoriaExcluida = _repository.Delete(id);
+        var categoriaExcluida = _repository.Delete(categoria);
 
         return Ok(categoria);
     }
