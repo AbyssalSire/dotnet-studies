@@ -12,15 +12,16 @@ namespace APICatalogo.Controllers;
 [ApiController]
 public class CategoriasController : ControllerBase
 {
-    private readonly IRepository<Categoria> _repository;
-    private readonly ICategoriaRepository _categoriaRepository;
+    //private readonly IRepository<Categoria> _repository;
+    private readonly IUnitOfWork _uow;
+    //private readonly ICategoriaRepository _categoriaRepository;
     private readonly IConfiguration _configuration;
     private readonly ILogger _logger;
 
-    public CategoriasController(IRepository<Categoria> repository, ICategoriaRepository categoriaRepository,IConfiguration configuration, ILogger<CategoriasController> logger)
+    public CategoriasController(IUnitOfWork uow, IConfiguration configuration, ILogger<CategoriasController> logger)
     {
-        _repository = repository;
-        _categoriaRepository = categoriaRepository;
+        //_repository = repository;
+        _uow = uow;
         _configuration = configuration;
         _logger = logger;
     }
@@ -41,7 +42,7 @@ public class CategoriasController : ControllerBase
     public ActionResult<IEnumerable<Categoria>> GetCategoriasProduto()
     {
         _logger.LogInformation("--------- GET categoria/produtos ----------");
-        var categoriasComProdutos = _categoriaRepository.GetCategoriasWithProducts();
+        var categoriasComProdutos = _uow.CategoriaRepository.GetCategoriasWithProducts();
         return Ok(categoriasComProdutos);
     }
     
@@ -53,7 +54,7 @@ public class CategoriasController : ControllerBase
         _logger.LogInformation("--------- GET categoria ----------");
 
         //throw new DataMisalignedException();
-        var categorias = _repository.GetAll();
+        var categorias = _uow.CategoriaRepository.GetAll();
         return Ok(categorias);
 
     }
@@ -63,7 +64,7 @@ public class CategoriasController : ControllerBase
     {
 
         //throw new Exception("Exceção ao retornar o a categoria pelo ID");
-        var categoria = _repository.Get(c=>c.CategoriaId == id);
+        var categoria = _uow.CategoriaRepository.Get(c=>c.CategoriaId == id);
         _logger.LogInformation($"--------- GET categoria/id {id} ----------");
         if(categoria == null)
         {
@@ -81,7 +82,8 @@ public class CategoriasController : ControllerBase
             return BadRequest("Categoria não encontrada");
         }
 
-        var categoriaCriada = _repository.Create(categoria);
+        var categoriaCriada = _uow.CategoriaRepository.Create(categoria);
+        _uow.Commit();
 
         return new CreatedAtRouteResult("ObterCategoria", new { id = categoriaCriada.CategoriaId }, categoriaCriada);
     }
@@ -94,7 +96,8 @@ public class CategoriasController : ControllerBase
             return BadRequest("Id não corresponde à categoria");
         }
 
-        _repository.Update(categoria);
+        _uow.CategoriaRepository.Update(categoria);
+        _uow.Commit();
 
         return Ok(categoria);
     }
@@ -102,13 +105,14 @@ public class CategoriasController : ControllerBase
     [HttpDelete("{id:int}")]
     public ActionResult<Categoria> Delete(int id)
     {
-        var categoria = _repository.Get(c => c.CategoriaId == id);
+        var categoria = _uow.CategoriaRepository.Get(c => c.CategoriaId == id);
         if(categoria == null)
         {
             return NotFound("Categoria não encontrada");
         }
 
-        var categoriaExcluida = _repository.Delete(categoria);
+        var categoriaExcluida = _uow.CategoriaRepository.Delete(categoria);
+        _uow.Commit();
 
         return Ok(categoria);
     }
