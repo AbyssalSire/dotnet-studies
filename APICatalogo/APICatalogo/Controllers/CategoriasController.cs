@@ -1,9 +1,13 @@
 ﻿using APICatalogo.Context;
+using APICatalogo.DTOs;
+using APICatalogo.DTOs.Mappings;
 using APICatalogo.Filters;
 using APICatalogo.Models;
+using APICatalogo.Pagination;
 using APICatalogo.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using NuGet.Protocol.Core.Types;
 
 namespace APICatalogo.Controllers;
@@ -37,76 +41,128 @@ public class CategoriasController : ControllerBase
 
     }
 
-    
-     [HttpGet("produtos")]
-    public ActionResult<IEnumerable<Categoria>> GetCategoriasProduto()
+
+    [HttpGet("produtos")]
+    public ActionResult<IEnumerable<CategoriaDTO>> GetCategoriasProduto()
     {
         _logger.LogInformation("--------- GET categoria/produtos ----------");
         var categoriasComProdutos = _uow.CategoriaRepository.GetCategoriasWithProducts();
-        return Ok(categoriasComProdutos);
+        return Ok(categoriasComProdutos.ToCategoriaDTOList());
     }
-    
+
 
     [HttpGet]
     [ServiceFilter(typeof(ApiLoggingFilter))]
-    public ActionResult<IEnumerable<Categoria>> Get()
+    public ActionResult<IEnumerable<CategoriaDTO>> Get()
     {
         _logger.LogInformation("--------- GET categoria ----------");
 
         //throw new DataMisalignedException();
         var categorias = _uow.CategoriaRepository.GetAll();
-        return Ok(categorias);
 
+        var categoriasDto = categorias.ToCategoriaDTOList();
+
+        return Ok(categoriasDto);
+
+    }
+
+    [HttpGet("pagination")]
+    public ActionResult<IEnumerable<CategoriaDTO>> Get([FromQuery] CategoriasParameters categoriasParameters)
+    {
+        var categorias = _uow.CategoriaRepository.GetCategorias(categoriasParameters);
+
+        return ObterCategorias(categorias);
+
+    }
+
+    [HttpGet("filter/nome/pagination")]
+    public ActionResult<IEnumerable<CategoriaDTO>> GetCategoriasFiltradas([FromQuery] CategoriasFiltroNome categoriasFiltro)
+    {
+        var categoriasFiltradas = _uow.CategoriaRepository.GetCategoriasFiltroNome(categoriasFiltro);
+
+        return ObterCategorias(categoriasFiltradas);
+    }
+
+    private ActionResult<IEnumerable<CategoriaDTO>> ObterCategorias(PagedList<Categoria> categorias)
+    {
+        var metadata = new
+        {
+            categorias.TotalCount,
+            categorias.PageSize,
+            categorias.CurrentPage,
+            categorias.TotalPages,
+            categorias.HasNext,
+            categorias.HasPrevious
+        };
+
+        Response.Headers.Append("X-Pagination", JsonConvert.SerializeObject(metadata));
+
+        var categoriasDTO = categorias.ToCategoriaDTOList();
+
+        return Ok(categoriasDTO);
     }
 
     [HttpGet("{id:int}", Name = "ObterCategoria")]
-    public ActionResult<Categoria> Get(int id)
+    public ActionResult<CategoriaDTO> Get(int id)
     {
 
         //throw new Exception("Exceção ao retornar o a categoria pelo ID");
-        var categoria = _uow.CategoriaRepository.Get(c=>c.CategoriaId == id);
+        var categoria = _uow.CategoriaRepository.Get(c => c.CategoriaId == id);
         _logger.LogInformation($"--------- GET categoria/id {id} ----------");
-        if(categoria == null)
+        if (categoria == null)
         {
-        _logger.LogInformation($"--------- GET categoria/id {id} NOT FOUND ----------");
+            _logger.LogInformation($"--------- GET categoria/id {id} NOT FOUND ----------");
             return NotFound("Categoria não encontrada...");
         }
-        return Ok(categoria);
+
+        var categoriaDto = categoria.ToCategoriaDTO();
+
+        return Ok(categoriaDto);
     }
 
     [HttpPost]
-    public ActionResult Post(Categoria categoria)
+    public ActionResult<CategoriaDTO> Post(CategoriaDTO categoriaDto)
     {
-        if(categoria is null)
+        if (categoriaDto is null)
         {
             return BadRequest("Categoria não encontrada");
         }
 
+        var categoria = categoriaDto.ToCategoria();
+
         var categoriaCriada = _uow.CategoriaRepository.Create(categoria);
         _uow.Commit();
 
-        return new CreatedAtRouteResult("ObterCategoria", new { id = categoriaCriada.CategoriaId }, categoriaCriada);
+        var novaCategoriaDto = categoriaCriada.ToCategoriaDTO();
+
+        return new CreatedAtRouteResult("ObterCategoria", new { id = novaCategoriaDto.CategoriaId }, novaCategoriaDto);
     }
 
     [HttpPut("{id:int}")]
-    public ActionResult Put(int id, Categoria categoria)
+    public ActionResult<CategoriaDTO> Put(int id, CategoriaDTO categoriaDto)
     {
-        if(id != categoria.CategoriaId)
+        if (id != categoriaDto.CategoriaId)
         {
             return BadRequest("Id não corresponde à categoria");
         }
 
-        _uow.CategoriaRepository.Update(categoria);
+        var categoria = categoriaDto.ToCategoria();
+
+        var categoriaAtualizada = _uow.CategoriaRepository.Update(categoria);
         _uow.Commit();
 
-        return Ok(categoria);
+        var categoriaAtualizadaDto = categoriaAtualizada.ToCategoriaDTO();
+
+
+
+        return Ok(categoriaAtualizadaDto);
     }
 
     [HttpDelete("{id:int}")]
-    public ActionResult<Categoria> Delete(int id)
+    public ActionResult<CategoriaDTO> Delete(int id)
     {
         var categoria = _uow.CategoriaRepository.Get(c => c.CategoriaId == id);
-        if(categoria == null)
+        if (categoria == null)
         {
             return NotFound("Categoria não encontrada");
         }
@@ -114,7 +170,9 @@ public class CategoriasController : ControllerBase
         var categoriaExcluida = _uow.CategoriaRepository.Delete(categoria);
         _uow.Commit();
 
-        return Ok(categoria);
+        var categoriaExcluidaDto = categoriaExcluida.ToCategoriaDTO();
+
+        return Ok(categoriaExcluidaDto);
     }
 
 
